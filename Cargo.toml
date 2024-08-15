@@ -14,6 +14,7 @@ bevy_app = { version = "0.14", default-features = false }
 bevy_core = { version = "0.14", default-features = false }
 bevy_utils = { version = "0.14", default-features = false }
 bevy_ecs = { version = "0.14", default-features = false }
+bevy_log = { version = "0.14", default-features = false }
 bevy_hierarchy = { version = "0.14", default-features = false, features = ["bevy_app"] }
 async-channel = "2"
 async-lock = "3"
@@ -22,14 +23,14 @@ futures-lite = "2"
 [dev-dependencies]
 rand = { version = "0.8", default-features = false, features = ["small_rng", "getrandom"] }
 bevy = { version = "0.14", default-features = false, features = [
-	"bevy_winit",
-	"x11",
-	"bevy_gltf",
-	"bevy_scene",
-	"bevy_ui",
-	"png",
-	"ktx2",
-	"zstd",
-	"tonemapping_luts",
+	#"bevy_winit",
+	#"x11",
+	#"bevy_gltf",
+	#"bevy_scene",
+	#"bevy_ui",
+	#"png",
+	#"ktx2",
+	#"zstd",
+	#"tonemapping_luts",
 	"multi_threaded",
 ] }

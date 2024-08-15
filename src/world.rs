@@ -5,6 +5,7 @@ use crate::util::{insert_resource, remove_resource};
 use crate::wait_for::StartWaitingFor;
 use crate::{die, recv_and_yield, CowStr};
 use async_channel::Receiver;
+use bevy_log::info;
 use bevy_core::Name;
 use bevy_ecs::prelude::*;
 use bevy_ecs::world::Command;
@@ -28,7 +29,7 @@ use std::fmt;
 /// ## Resources
 /// Insert, remove, and wait for resources to exist.
 #[derive(Clone, Debug)]
-pub struct AsyncWorld(CommandQueueSender);
+pub struct AsyncWorld(pub CommandQueueSender);
 
 impl AsyncWorld {
 	/// Returns a copy of the underlying `CommandQueueSender`.
@@ -38,6 +39,7 @@ impl AsyncWorld {
 
 	/// Applies the given `Command` to the world.
 	pub async fn apply<C: Command>(&self, command: C) {
+		info!("closed: {}", self.0.0.is_closed());
 		self.0.send_single(BoxedCommand::new(command)).await
 	}
 
@@ -83,6 +85,7 @@ impl AsyncWorld {
 	/// which can be used to further manipulate the entity.
 	pub async fn spawn<B: Bundle>(&self, bundle: B) -> AsyncEntity {
 		let (command, receiver) = SpawnAndSendId::new(bundle);
+		info!("closed: {}", self.0.0.is_closed());
 		self.apply(command).await;
 		let id = recv_and_yield(receiver).await;
 		AsyncEntity::new(id, self.clone())
@@ -162,6 +165,8 @@ impl FromWorld for AsyncWorld {
 			CommandQueueReceiver::new(receiver),
 			Name::new("CommandQueueReceiver"),
 		));
+		info!("receiver spawned");
+		info!("closed: {}", sender.is_closed());
 		CommandQueueSender::new(sender).into()
 	}
 }

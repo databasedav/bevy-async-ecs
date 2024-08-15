@@ -11,11 +11,13 @@ mod util;
 mod wait_for;
 mod world;
 
-use crate::command::{apply_commands, initialize_command_queue, receive_commands};
+use crate::command::{apply_commands, initialize_command_queue, receive_commands, print_receiver_state};
 use crate::wait_for::{drive_waiting_for, initialize_waiters};
 use async_channel::Receiver;
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
+use bevy_log::info;
+use bevy_utils::info;
 use futures_lite::{future, pin};
 
 pub use command::{BoxedCommand, CommandQueueBuilder, CommandQueueSender};
@@ -33,10 +35,16 @@ fn die<T, E: std::fmt::Debug>(e: E) -> T {
 }
 
 async fn recv_and_yield<T: Send>(receiver: Receiver<T>) -> T {
+	// info!("recv fn start");
+	info!("closed: {}", receiver.is_closed());
 	let recv_fut = receiver.recv();
+	// info!("recv fn end");
 	pin!(recv_fut);
+	// info!("recv pin end");
 	loop {
+		// info!("recv loop start");
 		if let Some(value) = future::poll_once(recv_fut.as_mut()).await {
+			info!("value: {:?}", value.is_ok());
 			return value.unwrap_or_else(die);
 		} else {
 			future::yield_now().await;
@@ -51,6 +59,7 @@ pub struct AsyncEcsPlugin;
 impl Plugin for AsyncEcsPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_systems(PreStartup, (initialize_command_queue, initialize_waiters))
+			.add_systems(Update, print_receiver_state)
 			.add_systems(
 				Last,
 				(receive_commands, apply_commands, apply_deferred).chain(),

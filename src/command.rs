@@ -1,7 +1,9 @@
 use crate::die;
 use async_channel::{Receiver, Sender, TryRecvError};
+use bevy_ecs::component::{ComponentHooks, StorageType};
 use bevy_ecs::prelude::*;
 use bevy_ecs::world::{Command, CommandQueue};
+use bevy_log::info;
 use bevy_utils::tracing::debug;
 use std::fmt;
 
@@ -93,7 +95,7 @@ impl fmt::Debug for CommandQueueBuilder {
 ///
 /// The easiest way to get a `CommandQueueSender` is with `AsyncWorld::sender()`.
 #[derive(Clone, Debug)]
-pub struct CommandQueueSender(Sender<CommandQueue>);
+pub struct CommandQueueSender(pub Sender<CommandQueue>);
 
 impl CommandQueueSender {
 	pub(crate) fn new(inner: Sender<CommandQueue>) -> Self {
@@ -103,18 +105,39 @@ impl CommandQueueSender {
 	/// Sends an `CommandQueue` directly to the Bevy `World`, where they will be applied during
 	/// the `Last` schedule.
 	pub async fn send_queue(&self, inner_queue: CommandQueue) {
-		self.0.send(inner_queue).await.unwrap_or_else(die)
+		// self.0.send(inner_queue).await.unwrap_or_else(die)
+		info!("closed: {}", self.0.is_closed());
+		if let Err(e) = self.0.send(inner_queue).await {
+			info!("Error: {:?}", e.into_inner());
+		}
 	}
 
 	/// Sends a (boxed) `Command` directly to the Bevy `World`, where they it be applied during
 	/// the `Last` schedule.
 	pub async fn send_single(&self, single: BoxedCommand) {
+		info!("closed: {}", self.0.is_closed());
 		self.send_queue(single.into()).await;
 	}
 }
 
-#[derive(Component)]
+// #[derive(Component)]
 pub(crate) struct CommandQueueReceiver(Receiver<CommandQueue>);
+
+impl Component for CommandQueueReceiver {
+    const STORAGE_TYPE: StorageType = StorageType::Table;
+
+    fn register_component_hooks(hooks: &mut ComponentHooks) {
+        hooks.on_remove(|mut world, entity, _| {
+            info!("receiver removed");
+        });
+    }
+}
+
+pub fn print_receiver_state(receiver: Query<&CommandQueueReceiver>) {
+	for receiver in receiver.iter() {
+		info!("closed: {}", receiver.0.is_closed());
+	}
+}
 
 impl CommandQueueReceiver {
 	pub(crate) fn new(receiver: Receiver<CommandQueue>) -> Self {
@@ -158,6 +181,7 @@ pub(crate) fn receive_commands(
 ) {
 	for (id, receiver) in receivers.iter() {
 		if receiver.enqueue_into(&mut queue).is_err() {
+			info!("was err");
 			commands.entity(id).despawn()
 		}
 	}

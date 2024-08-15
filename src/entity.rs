@@ -106,26 +106,28 @@ impl<C: Component> AsyncComponent<C> {
 
 pub(crate) struct SpawnAndSendId<B> {
 	bundle: B,
-	sender: Sender<Entity>,
+	pub sender: Sender<Entity>,
+	receiver: Receiver<Entity>,
 }
 
 impl SpawnAndSendId<()> {
 	pub(crate) fn new_empty() -> (Self, Receiver<Entity>) {
 		let (sender, receiver) = async_channel::bounded(1);
-		(Self { bundle: (), sender }, receiver)
+		(Self { bundle: (), sender, receiver: receiver.clone() }, receiver)
 	}
 }
 
 impl<B: Bundle> SpawnAndSendId<B> {
 	pub(crate) fn new(bundle: B) -> (Self, Receiver<Entity>) {
 		let (sender, receiver) = async_channel::bounded(1);
-		(Self { bundle, sender }, receiver)
+		(Self { bundle, sender, receiver: receiver.clone() }, receiver)
 	}
 }
 
 impl<B: Bundle> Command for SpawnAndSendId<B> {
 	fn apply(self, world: &mut World) {
 		let id = world.spawn(self.bundle).id();
+		let receiver = self.receiver;
 		self.sender.try_send(id).unwrap_or_else(die);
 	}
 }

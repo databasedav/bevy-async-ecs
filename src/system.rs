@@ -3,6 +3,7 @@ use crate::world::AsyncWorld;
 use crate::{die, recv_and_yield};
 use bevy_ecs::prelude::*;
 use bevy_ecs::system::{BoxedSystem, SystemId};
+use bevy_log::info;
 use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -28,8 +29,12 @@ impl AsyncSystem {
 		let (id_tx, id_rx) = async_channel::bounded(1);
 		world
 			.apply(move |world: &mut World| {
+				info!("registering");
 				let id = world.register_boxed_system(system);
+				info!("registered");
+				info!("sending");
 				id_tx.try_send(id).unwrap_or_else(die);
+				info!("sent");
 			})
 			.await;
 		let id = recv_and_yield(id_rx).await;
